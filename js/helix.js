@@ -37,24 +37,25 @@ export function initHelix(items) {
   });
 
   // helix geometry — radius + pitch scale with the viewport so it fits every window
-  const ANG = 40 * Math.PI / 180;      // angle between successive cards around the axis
+  const ANG = 50 * Math.PI / 180;      // angle between successive cards around the axis
 
   let cur = 0, target = 0;
 
   function place() {
-    const R = Math.min(560, window.innerWidth * 0.40);   // radius from the central axis (px)
-    const RISE = R * 0.34;                                // spiral pitch (climb per step)
+    const cardW = Math.min(500, window.innerWidth * 0.44);
+    const cardH = cardW / 1.58;                          // matches CSS aspect-ratio 60/38
+    const R = Math.min(560, window.innerWidth * 0.42);   // radius from the central axis (px)
+    const RISE = cardH * 1.15;                            // pitch > card height -> neighbours clear vertically
     for (let i = 0; i < N; i++) {
-      let o = i - cur;
-      o = ((o % N) + N + N / 2) % N - N / 2;   // wrap to [-N/2, N/2)
+      const o = i - cur;                       // NO wrap: finite list, real first/last ends
       const ao = Math.abs(o);
       const th = o * ANG;
 
       const x = Math.sin(th) * R;              // swing around the axis
-      const z = (Math.cos(th) - 1) * R;        // 0 at front focus, recedes back
+      const z = (Math.cos(th) - 1) * R - ao * 60;  // recede back (extra push so neighbours sit behind)
       const y = -o * RISE;                     // climb up-and-back along the spiral
-      const scale = clamp(1 - ao * 0.16, 0.4, 1);
-      const op = clamp(1 - ao * 0.42, 0, 1);
+      const scale = clamp(1 - ao * 0.22, 0.35, 1);
+      const op = clamp(1 - ao * 0.5, 0, 1);
 
       const c = cards[i];
       c.style.transform =
@@ -74,10 +75,10 @@ export function initHelix(items) {
     const total = section.offsetHeight - window.innerHeight;
     if (total <= 0) return;                     // hidden (mobile) -> skip
     const p = clamp(-r.top / total, 0, 1);
-    target = p * N;
+    target = p * (N - 1);           // full scroll span covers first (0) to last (N-1) card
     // Lenis already smooths the scroll position we read above; track it tightly here
     // so the spiral feels connected to the input instead of rubber-banding behind it.
-    cur += (target - cur) * (reduced ? 1 : 0.3);
+    cur += (target - cur) * (reduced ? 1 : 0.22);
     place();
   }
   frame();

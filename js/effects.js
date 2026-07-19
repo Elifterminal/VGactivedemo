@@ -19,7 +19,7 @@ export async function initSmoothScroll() {
   if (!REDUCED) {
     try {
       const { default: Lenis } = await import("lenis");
-      const lenis = new Lenis({ lerp: 0.09, wheelMultiplier: 1 });
+      const lenis = new Lenis({ lerp: 0.075, wheelMultiplier: 0.7, smoothWheel: true, syncTouch: true });
       lenis.on("scroll", emit);
       const raf = (t) => { lenis.raf(t); requestAnimationFrame(raf); };
       requestAnimationFrame(raf);

@@ -145,7 +145,7 @@ footer { text-align: center; padding: 40px var(--pad) 60px; position: relative; 
   filter: blur(0.5px); box-shadow: 0 0 26px rgba(51,224,200,0.4); pointer-events: none; z-index: 1; }
 .helix-ring { position: absolute; inset: 0; margin: auto; transform-style: preserve-3d; will-change: transform; z-index: 2; }
 .hcard {
-  position: absolute; top: 50%; left: 50%; width: min(600px, 52vw); aspect-ratio: 60 / 38;
+  position: absolute; top: 50%; left: 50%; width: min(500px, 44vw); aspect-ratio: 60 / 38;
   border-radius: 22px; overflow: hidden; transform-origin: center center; transform-style: preserve-3d;
   border: 1px solid color-mix(in srgb, var(--c1) 50%, transparent);
   background: linear-gradient(150deg, color-mix(in srgb, var(--c2) 88%, #05070d), #05070d 76%);
@@ -173,7 +173,7 @@ footer { text-align: center; padding: 40px var(--pad) 60px; position: relative; 
 .helix-hint { color: var(--vg-muted); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
 
 @media (min-width: 821px) {
-  #helix { display: block; height: 360vh; padding: 0 var(--pad); }
+  #helix { display: block; height: 500vh; padding: 0 var(--pad); }
   #surfaces { display: none; }   /* desktop uses the helix; mobile keeps the flat grid */
 }
 
