@@ -74,7 +74,9 @@ export function initHelix(items) {
     if (total <= 0) return;                     // hidden (mobile) -> skip
     const p = clamp(-r.top / total, 0, 1);
     target = p * N;
-    cur += (target - cur) * (reduced ? 1 : 0.085); // eased -> glides smoothly
+    // Lenis already smooths the scroll position we read above; track it tightly here
+    // so the spiral feels connected to the input instead of rubber-banding behind it.
+    cur += (target - cur) * (reduced ? 1 : 0.3);
     place();
   }
   frame();

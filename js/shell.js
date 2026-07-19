@@ -40,7 +40,7 @@ export function createVGShell(canvas, opts = {}) {
   try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: "high-performance" }); }
   catch (e) { return null; }
   if (!renderer.getContext()) return null;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
   renderer.setClearColor(BG, 1);
 
   const scene = new THREE.Scene();
@@ -53,7 +53,7 @@ export function createVGShell(canvas, opts = {}) {
   backdrop.position.z = -14; scene.add(backdrop);
 
   // ---- particles: curl-flow glitter (all motion on GPU) ----
-  const COUNT = reduced ? 1100 : 3800;
+  const COUNT = reduced ? 900 : 2400;
   const posArr = new Float32Array(COUNT*3), col = new Float32Array(COUNT*3);
   const aSize = new Float32Array(COUNT), aPhase = new Float32Array(COUNT);
   const RX = 11, RY = 9, RZ = 6;
@@ -166,7 +166,8 @@ export function createVGShell(canvas, opts = {}) {
   let baseZ = 6.2;
   function resize() {
     const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
-    renderer.setSize(w, h, false); composer.setSize(w, h); bloom.setSize(w, h);
+    renderer.setSize(w, h, false); composer.setSize(w, h);
+    bloom.setSize(Math.round(w * 0.6), Math.round(h * 0.6)); // half-res bloom = big GPU saving, ~same look
     camera.aspect = w / h; baseZ = w < h ? 8.2 : (w < 900 ? 7.0 : 6.2); camera.updateProjectionMatrix();
   }
   resize(); window.addEventListener("resize", resize);

@@ -149,15 +149,17 @@ footer { text-align: center; padding: 40px var(--pad) 60px; position: relative; 
   border-radius: 22px; overflow: hidden; transform-origin: center center; transform-style: preserve-3d;
   border: 1px solid color-mix(in srgb, var(--c1) 50%, transparent);
   background: linear-gradient(150deg, color-mix(in srgb, var(--c2) 88%, #05070d), #05070d 76%);
-  box-shadow: 0 30px 90px rgba(0,0,0,0.6);
+  box-shadow: 0 18px 48px rgba(0,0,0,0.55);
   transition: border-color 0.35s, box-shadow 0.35s; will-change: transform, opacity;
 }
-.hcard .sheen { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; opacity: 0.5;
-  background:
-    linear-gradient(115deg, transparent 22%, color-mix(in srgb, var(--c1) 65%, #fff) 46%, transparent 62%),
-    radial-gradient(120% 120% at 18% 8%, color-mix(in srgb, var(--c1) 42%, transparent), transparent 55%);
-  background-size: 260% 260%, 100% 100%; animation: sheen 6.5s linear infinite; }
-@keyframes sheen { 0% { background-position: 0% 0%, 0 0; } 100% { background-position: 260% 260%, 0 0; } }
+/* static iridescent tint (cheap) + a GPU-composited sweeping band (transform, no repaint) */
+.hcard::before { content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; opacity: 0.4;
+  background: radial-gradient(120% 120% at 18% 8%, color-mix(in srgb, var(--c1) 42%, transparent), transparent 55%); }
+.hcard .sheen { position: absolute; top: -20%; bottom: -20%; left: -70%; width: 55%; pointer-events: none;
+  mix-blend-mode: screen; opacity: 0.5; will-change: transform; transform: translateX(0) rotate(8deg);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c1) 70%, #fff), transparent);
+  animation: sheen 5.5s linear infinite; }
+@keyframes sheen { 0% { transform: translateX(0) rotate(8deg); } 100% { transform: translateX(360%) rotate(8deg); } }
 .hcard .hmark { position: absolute; right: -8px; top: -46px; font-size: 240px; font-weight: 800; line-height: 1;
   letter-spacing: -0.06em; color: color-mix(in srgb, var(--c1) 20%, transparent); pointer-events: none; }
 .hcard .hbody { position: absolute; left: 34px; right: 34px; bottom: 32px; display: flex; flex-direction: column; gap: 9px; }
@@ -166,7 +168,7 @@ footer { text-align: center; padding: 40px var(--pad) 60px; position: relative; 
 .hcard p { color: rgba(234,243,242,0.82); font-size: 15px; line-height: 1.5; margin: 0; max-width: 74%; }
 .hcard .go { color: var(--c1); font-size: 13px; letter-spacing: 0.1em; opacity: 0; transition: 0.3s; }
 .hcard.active { border-color: color-mix(in srgb, var(--c1) 90%, transparent);
-  box-shadow: 0 44px 120px rgba(0,0,0,0.7), 0 0 80px color-mix(in srgb, var(--c1) 30%, transparent); }
+  box-shadow: 0 26px 66px rgba(0,0,0,0.6), 0 0 46px color-mix(in srgb, var(--c1) 28%, transparent); }
 .hcard.active .go { opacity: 1; }
 .helix-hint { color: var(--vg-muted); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
 
