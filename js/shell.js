@@ -148,30 +148,107 @@ export function createVGShell(canvas, opts = {}) {
   for (let i = 0; i < RPOOL; i++) ripStates.push({ life: 0, max: 0, cx: 0.5, cy: 0.5 });
   let rippleTimer = 2 + Math.random() * 3;
 
-  // ---- vg-mark + a sweeping specular shine ----
+  // ---- vg-mark as an interactive PARTICLE FORGE (ported from Argus' initForge) ----
+  //   the mark is built from points sampled off the image; the cursor blows them apart
+  //   (repel + energize), they swirl through a curl-flow field + rise, then a spring pulls
+  //   each back to its home pixel and they recombine. Keeps VG colour (not amber), the
+  //   shine sweep, and the coin-sink.
   const markGroup = new THREE.Group(); scene.add(markGroup);
-  let shine = null, markMesh = null, glowMesh = null;
-  new THREE.TextureLoader().load("assets/vg-mark-512.png", (tex) => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const aspect = (tex.image?.width && tex.image?.height) ? tex.image.width/tex.image.height : 1;
-    const h = 2.2, w = h*aspect;
-    const mark = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false }));
-    const glow = new THREE.Mesh(new THREE.PlaneGeometry(w*1.06, h*1.06),
-      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0.5 }));
-    glow.position.z = -0.02;
-    // shine: a bright band that sweeps across the mark, masked by the mark alpha
-    shine = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.ShaderMaterial({
-      uniforms: { uMap: { value: tex }, uTime: { value: 0 }, uLit: { value: 1 } },
-      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-      vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-      fragmentShader: `uniform sampler2D uMap; uniform float uTime, uLit; varying vec2 vUv;
-        void main(){ float a=texture2D(uMap,vUv).a; float sweep=smoothstep(0.06,0.0,abs(fract(vUv.x*0.5 - uTime*0.12)-0.5));
-          gl_FragColor=vec4(vec3(0.55,1.0,0.95)*sweep, a*sweep*0.9*uLit); }`,
-    }));
-    shine.position.z = 0.01;
-    markMesh = mark; glowMesh = glow;
-    markGroup.add(glow, mark, shine); finishReady();
-  }, undefined, () => finishReady());
+  let markPts = null, markGeo = null, markMat = null;
+  let mN = 0, mHome = null, mPos = null, mVel = null, mEne = null;   // CPU physics state
+  const markUn = { uTime: { value: 0 }, uLit: { value: 1 }, uDpr: { value: renderer.getPixelRatio() }, uSize: { value: 0.06 } };
+  const rc = new THREE.Raycaster(), markPlane = new THREE.Plane();
+  const _n = new THREE.Vector3(), _wp = new THREE.Vector3(), _q = new THREE.Quaternion(), _hit = new THREE.Vector3();
+  const cursorOn = { v: false };
+
+  const markImg = new Image(); markImg.src = "assets/vg-mark-512.png";
+  markImg.onload = () => {
+    const aspect = markImg.naturalWidth / markImg.naturalHeight;
+    const Hd = 2.2, Wd = Hd * aspect;
+    const SX = 230, SY = Math.max(1, Math.round(SX / aspect));
+    const oc = document.createElement("canvas"); oc.width = SX; oc.height = SY;
+    const octx = oc.getContext("2d"); octx.drawImage(markImg, 0, 0, SX, SY);
+    const data = octx.getImageData(0, 0, SX, SY).data;
+    const hx = [], cx = [], ux = [], sd = [];
+    for (let y = 0; y < SY; y++) for (let x = 0; x < SX; x++) {
+      const i = (y * SX + x) * 4, r = data[i], g = data[i + 1], b = data[i + 2];
+      if (0.299 * r + 0.587 * g + 0.114 * b < 30) continue;
+      hx.push((x / SX - 0.5) * Wd, (0.5 - y / SY) * Hd);       // local coords (+y up)
+      cx.push(Math.min(1, r / 255 * 1.3), Math.min(1, g / 255 * 1.3), Math.min(1, b / 255 * 1.3));
+      ux.push(x / SX); sd.push(Math.random());
+    }
+    mN = hx.length / 2;
+    mHome = new Float32Array(hx); mPos = new Float32Array(hx);
+    mVel = new Float32Array(mN * 2); mEne = new Float32Array(mN);
+    const pos3 = new Float32Array(mN * 3);
+    for (let i = 0; i < mN; i++) { pos3[i*3] = hx[i*2]; pos3[i*3+1] = hx[i*2+1]; }
+    markGeo = new THREE.BufferGeometry();
+    markGeo.setAttribute("position", new THREE.BufferAttribute(pos3, 3));
+    markGeo.setAttribute("aColor", new THREE.BufferAttribute(new Float32Array(cx), 3));
+    markGeo.setAttribute("aEne", new THREE.BufferAttribute(new Float32Array(mN), 1));
+    markGeo.setAttribute("aU", new THREE.BufferAttribute(new Float32Array(ux), 1));
+    markGeo.setAttribute("aSeed", new THREE.BufferAttribute(new Float32Array(sd), 1));
+    markMat = new THREE.ShaderMaterial({
+      uniforms: markUn, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: `
+        attribute vec3 aColor; attribute float aEne; attribute float aU; attribute float aSeed;
+        uniform float uTime, uDpr, uSize;
+        varying vec3 vCol; varying float vEne; varying float vShine; varying float vFlk;
+        void main(){
+          vCol = aColor; vEne = aEne;
+          vShine = smoothstep(0.06, 0.0, abs(fract(aU*0.5 - uTime*0.12) - 0.5));   // reflective light sweep
+          vFlk = 1.0 + (0.08 + 0.28*aEne) * sin(uTime*9.0 + aSeed*6.2831);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = uSize * uDpr * (300.0 / -mv.z) * (1.0 + aEne*1.6);
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader: `
+        precision mediump float;
+        uniform float uLit;
+        varying vec3 vCol; varying float vEne; varying float vShine; varying float vFlk;
+        void main(){
+          float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard;
+          float a = smoothstep(0.5, 0.0, d);
+          vec3 core = vec3(0.72, 1.0, 0.96);                          // VG white-cyan hot core (NOT amber)
+          vec3 c = mix(vCol, core, pow(a, 3.0) * (0.4 + 0.45*vEne));
+          c += vCol * vEne * 0.5;                                     // brighter (in VG colour) when stirred
+          c += core * vShine * 0.55;                                  // reflective light passing over
+          float alpha = a * vFlk * (1.0 + 0.35*vEne) * (0.82 + 0.5*vShine) * uLit;
+          gl_FragColor = vec4(c, alpha);
+        }`,
+    });
+    markPts = new THREE.Points(markGeo, markMat);
+    markGroup.add(markPts);
+    finishReady();
+  };
+  markImg.onerror = () => finishReady();
+
+  // forge physics (per-frame, ~60fps like Argus). Local units: logo ~3.2 wide.
+  const F_R = 0.5, F_R2 = F_R * F_R, F_REP = 0.13, F_FLOW = 0.004, F_RISE = 0.0016;
+  function forgeStep(cx, cy, on, t) {
+    const P = markGeo.attributes.position.array, E = markGeo.attributes.aEne.array;
+    for (let i = 0; i < mN; i++) {
+      const i2 = i*2, i3 = i*3;
+      let x = mPos[i2], y = mPos[i2+1], vx = mVel[i2], vy = mVel[i2+1], e = mEne[i];
+      if (on) {
+        const dx = x - cx, dy = y - cy, d2 = dx*dx + dy*dy;
+        if (d2 < F_R2) { const d = Math.sqrt(d2) || 1e-4, f = 1 - d/F_R, inv = (f/d)*F_REP;
+          vx += dx*inv; vy += dy*inv; e = Math.min(1, e + f*0.8); }
+      }
+      if (e > 0.01) {                                    // curl-ish flow -> gas swirl
+        const s = (Math.sin(x*2.0 + t) + Math.cos(y*2.0 - t*0.8)) * Math.PI;
+        vx += Math.cos(s)*e*F_FLOW; vy += Math.sin(s)*e*F_FLOW;
+        vy += e*F_RISE;                                  // rise while hot (+y up)
+        e *= 0.975;                                      // energy bleeds off (~3s)
+      }
+      const sx = mHome[i2] - x, sy = mHome[i2+1] - y, k = 0.006 + 0.05*(1 - e);  // spring home
+      vx += sx*k; vy += sy*k; vx *= 0.9; vy *= 0.9;
+      x += vx; y += vy;
+      if (e < 0.02 && sx*sx + sy*sy < 2e-4) { x = mHome[i2]; y = mHome[i2+1]; vx = vy = 0; e = 0; }
+      mPos[i2] = x; mPos[i2+1] = y; mVel[i2] = vx; mVel[i2+1] = vy; mEne[i] = e;
+      P[i3] = x; P[i3+1] = y; E[i] = e;
+    }
+  }
 
   // ---- composer: render -> bloom -> cinematic grade ----
   const composer = new EffectComposer(renderer);
@@ -219,8 +296,11 @@ export function createVGShell(canvas, opts = {}) {
     const t = e.touches ? e.touches[0] : e; if (!t) return;
     target.x = (t.clientX/innerWidth - 0.5)*2; target.y = (t.clientY/innerHeight - 0.5)*2;
     cursorUV.x = t.clientX/innerWidth; cursorUV.y = 1 - t.clientY/innerHeight;
+    cursorOn.v = true;
   }
   window.addEventListener("pointermove", onMove, { passive: true });
+  window.addEventListener("blur", () => { cursorOn.v = false; });
+  document.addEventListener("mouseleave", () => { cursorOn.v = false; });
   // click ripples the aberration
   let clickPulse = 0;
   window.addEventListener("pointerdown", () => { clickPulse = 1; });
@@ -276,18 +356,30 @@ export function createVGShell(canvas, opts = {}) {
     ring1.rotation.z += dt*(0.25 + scroll*0.6);
     ring2.rotation.z -= dt*(0.18 + scroll*0.5); ring2.rotation.y += dt*0.12;
 
-    // the mark sinks like a coin into dark water: slow, deep, dimming to black,
-    // not fully gone until just before the page bottom
-    const sink = scroll;                       // 0..1 across the whole page
-    const lit = Math.max(0, 1 - sink * 1.06);  // brightness fades to 0 near the bottom
+    // coin-sink (slow, deep, dimming) — applied to the particle mark group
+    const sink = scroll;
+    const lit = Math.max(0, 1 - sink * 1.06);
     markGroup.position.y = Math.sin(t*0.6)*0.06 - sink * 2.8;
-    markGroup.rotation.y = lerp(markGroup.rotation.y, target.x*0.3 + sink*0.5, Math.min(1, dt*2)); // gentle turn, no full spin
+    markGroup.rotation.y = lerp(markGroup.rotation.y, target.x*0.3 + sink*0.5, Math.min(1, dt*2));
     markGroup.rotation.z = Math.sin(t*0.3)*0.03;
     markGroup.scale.setScalar(1 - sink * 0.4);
-    if (markMesh) markMesh.material.opacity = lit;
-    if (glowMesh) glowMesh.material.opacity = 0.5 * lit * lit;
-    if (shine) { shine.material.uniforms.uTime.value = t; shine.material.uniforms.uLit.value = lit; }
-    ringMat.opacity = 0.55 * lit; ringMat2.opacity = 0.4 * lit;   // halo dims with it
+    ringMat.opacity = 0.55 * lit; ringMat2.opacity = 0.4 * lit;
+
+    if (markPts) {
+      markUn.uTime.value = t; markUn.uLit.value = lit;
+      // project the cursor onto the mark's plane -> local coords, then run the forge
+      markGroup.getWorldQuaternion(_q); markGroup.getWorldPosition(_wp);
+      _n.set(0, 0, 1).applyQuaternion(_q);
+      markPlane.setFromNormalAndCoplanarPoint(_n, _wp);
+      rc.setFromCamera({ x: cursorUV.x*2 - 1, y: cursorUV.y*2 - 1 }, camera);
+      let cx = 1e4, cy = 1e4, on = false;
+      if (cursorOn.v && rc.ray.intersectPlane(markPlane, _hit)) {
+        markGroup.worldToLocal(_hit); cx = _hit.x; cy = _hit.y; on = true;
+      }
+      forgeStep(cx, cy, on, t);
+      markGeo.attributes.position.needsUpdate = true;
+      markGeo.attributes.aEne.needsUpdate = true;
+    }
 
     bloom.strength = 0.9 + clickPulse*0.4;   // keep glow for stars/comets; mark dims via its own opacity
 
@@ -317,6 +409,7 @@ export function createVGShell(canvas, opts = {}) {
       pGeo.dispose(); pMat.dispose(); dot.dispose(); cGeo.dispose(); cMat.dispose();
       ring1.geometry.dispose(); ring2.geometry.dispose(); ringMat.dispose(); ringMat2.dispose();
       backdrop.geometry.dispose(); backdrop.material.map.dispose(); backdrop.material.dispose();
+      markGeo?.dispose(); markMat?.dispose();
       composer.dispose?.(); renderer.dispose();
     },
   };
