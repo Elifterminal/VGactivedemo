@@ -129,6 +129,18 @@ export function createVGShell(canvas, opts = {}) {
   const ring2 = new THREE.Mesh(new THREE.TorusGeometry(2.15, 0.004, 8, 240), ringMat2); ring2.rotation.x = 0.5;
   scene.add(ring1, ring2);
 
+  // ---- pond ripples: rare expanding rings (the "stars on dark water" feel) ----
+  const RPOOL = 4;
+  const rippleGeo = new THREE.RingGeometry(0.93, 1.0, 56);
+  const ripples = [];
+  for (let i = 0; i < RPOOL; i++) {
+    const m = new THREE.Mesh(rippleGeo, new THREE.MeshBasicMaterial({
+      color: TEAL, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    m.visible = false; scene.add(m);
+    ripples.push({ mesh: m, life: 0, max: 0 });
+  }
+  let rippleTimer = 2 + Math.random() * 3;
+
   // ---- vg-mark + a sweeping specular shine ----
   const markGroup = new THREE.Group(); scene.add(markGroup);
   let shine = null;
@@ -237,6 +249,26 @@ export function createVGShell(canvas, opts = {}) {
     cGeo.attributes.position.needsUpdate = true;
     cGeo.attributes.color.needsUpdate = true;
 
+    // pond ripples: spawn rarely, expand + fade like a drop on water
+    rippleTimer -= dt;
+    if (rippleTimer <= 0) {
+      const r = ripples.find((rr) => rr.life <= 0);
+      if (r) {
+        r.max = r.life = 2.6 + Math.random() * 1.6;
+        r.mesh.position.set((Math.random() - 0.5) * 7, (Math.random() - 0.5) * 4.5 - 0.5, -0.6);
+        r.mesh.material.color.copy(Math.random() < 0.5 ? TEAL : CYAN);
+        r.mesh.visible = true;
+      }
+      rippleTimer = 3.5 + Math.random() * 5;   // rare
+    }
+    for (const r of ripples) {
+      if (r.life <= 0) { if (r.mesh.visible) r.mesh.visible = false; continue; }
+      r.life -= dt;
+      const pr = 1 - r.life / r.max;
+      r.mesh.scale.setScalar(0.2 + pr * 2.6);
+      r.mesh.material.opacity = Math.sin(pr * Math.PI) * 0.3;
+    }
+
     ring1.rotation.z += dt*(0.25 + scroll*0.6);
     ring2.rotation.z -= dt*(0.18 + scroll*0.5); ring2.rotation.y += dt*0.12;
 
@@ -272,6 +304,7 @@ export function createVGShell(canvas, opts = {}) {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize); window.removeEventListener("pointermove", onMove);
       pGeo.dispose(); pMat.dispose(); dot.dispose(); cGeo.dispose(); cMat.dispose();
+      rippleGeo.dispose(); ripples.forEach((r) => r.mesh.material.dispose());
       ring1.geometry.dispose(); ring2.geometry.dispose(); ringMat.dispose(); ringMat2.dispose();
       backdrop.geometry.dispose(); backdrop.material.map.dispose(); backdrop.material.dispose();
       composer.dispose?.(); renderer.dispose();

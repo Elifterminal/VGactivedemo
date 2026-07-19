@@ -9,24 +9,17 @@ const FINE = window.matchMedia("(pointer: fine)").matches;
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const lerp = (a, b, t) => a + (b - a) * t;
 
-/* ---------------- smooth scroll + progress ---------------- */
-export async function initSmoothScroll() {
+/* ---------------- scroll progress (NATIVE scroll) ----------------
+   No JS smooth-scroll library. A main-thread scroll-jacker (Lenis) stutters on
+   this page because the WebGL keeps the main thread busy, so wheel scrolling went
+   "scroll-pause-scroll". Native scroll runs on the compositor and stays smooth;
+   we just broadcast the position for the WebGL/helix to read. */
+export function initSmoothScroll() {
   const emit = () => {
     const max = document.documentElement.scrollHeight - window.innerHeight;
     const p = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
     window.dispatchEvent(new CustomEvent("vg:scroll", { detail: { progress: p } }));
   };
-  if (!REDUCED) {
-    try {
-      const { default: Lenis } = await import("lenis");
-      const lenis = new Lenis({ lerp: 0.075, wheelMultiplier: 0.7, smoothWheel: true, syncTouch: true });
-      lenis.on("scroll", emit);
-      const raf = (t) => { lenis.raf(t); requestAnimationFrame(raf); };
-      requestAnimationFrame(raf);
-      emit();
-      return;
-    } catch (e) { /* CDN miss -> native scroll below */ }
-  }
   window.addEventListener("scroll", emit, { passive: true });
   emit();
 }
