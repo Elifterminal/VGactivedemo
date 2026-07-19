@@ -1,18 +1,15 @@
-// VGactivedemo — "Helix tabs": VG's tabs as real clickable cards on a scroll-driven
-// 3D carousel, Active-Theory /work style. Coverflow/depth: the CENTER card grows
-// LARGE, flat, image-rich and readable; neighbours recede in depth (small + dim) but
-// stay front-facing. Real <a> links. Each card carries a per-tab holographic panel.
+// VGactivedemo — "Helix tabs": VG tabs as real clickable cards on a scroll-driven
+// SPIRAL (Active-Theory /work style). Cards sit on a true cylindrical helix around a
+// vertical axis — each one is rotated around the axis AND raised AND pushed back in
+// depth, so the ring climbs up-and-back into the distance. Scrolling travels you
+// through the spiral: each card rises to the front focus (big, flat, readable), then
+// spirals up and away. Real <a> links; center card stays clickable.
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
-// per-tab colour identity (rim-light + gradient + sheen tint)
 const HUES = [
-  ["#33e0c8", "#0b6f6a"], // teal
-  ["#53b9ff", "#123a6b"], // cyan
-  ["#b06cff", "#3a1a6b"], // violet
-  ["#d9b16a", "#5a3f14"], // gold
-  ["#ff6ca6", "#6b1a3a"], // magenta
-  ["#7CE07A", "#1f5a2a"], // green
+  ["#33e0c8", "#0b6f6a"], ["#53b9ff", "#123a6b"], ["#b06cff", "#3a1a6b"],
+  ["#d9b16a", "#5a3f14"], ["#ff6ca6", "#6b1a3a"], ["#7CE07A", "#1f5a2a"],
 ];
 
 export function initHelix(items) {
@@ -28,11 +25,9 @@ export function initHelix(items) {
     a.className = "hcard";
     a.href = s.href; a.target = "_blank"; a.rel = "noopener";
     const [c1, c2] = HUES[i % HUES.length];
-    a.style.setProperty("--c1", c1);
-    a.style.setProperty("--c2", c2);
+    a.style.setProperty("--c1", c1); a.style.setProperty("--c2", c2);
     a.innerHTML =
-      `<span class="sheen"></span>` +
-      `<span class="hmark">VG</span>` +
+      `<span class="sheen"></span><span class="hmark">VG</span>` +
       `<div class="hbody"><span class="hcat">Tab ${String(i + 1).padStart(2, "0")}</span>` +
       `<b></b><p></p><span class="go">Open ↗</span></div>`;
     a.querySelector("b").textContent = s.label;
@@ -41,8 +36,10 @@ export function initHelix(items) {
     return a;
   });
 
-  const GAP = 560, DEPTH = 470;   // spacing so the big centre card dominates
-  const TILT = 34, ARC = 30;
+  // helix geometry
+  const R = 560;                       // radius from the central axis (px)
+  const ANG = 40 * Math.PI / 180;      // angle between successive cards around the axis
+  const RISE = 190;                    // how far each step climbs (spiral pitch)
 
   let cur = 0, target = 0;
 
@@ -50,19 +47,21 @@ export function initHelix(items) {
     for (let i = 0; i < N; i++) {
       let o = i - cur;
       o = ((o % N) + N + N / 2) % N - N / 2;   // wrap to [-N/2, N/2)
-      const ao = Math.abs(o), s = Math.sign(o) || 1;
+      const ao = Math.abs(o);
+      const th = o * ANG;
 
-      const x = s * GAP * (Math.min(ao, 1) + Math.max(0, ao - 1) * 0.6);
-      const z = -ao * DEPTH;
-      const ry = clamp(-o, -1, 1) * TILT;
-      const y = -ARC * ao;
-      const scale = Math.max(0.32, 1 - ao * 0.5);   // centre big, neighbours small
-      const op = clamp(1 - ao * 0.5, 0, 1);
+      const x = Math.sin(th) * R;              // swing around the axis
+      const z = (Math.cos(th) - 1) * R;        // 0 at front focus, recedes back
+      const y = -o * RISE;                     // climb up-and-back along the spiral
+      const scale = clamp(1 - ao * 0.16, 0.4, 1);
+      const op = clamp(1 - ao * 0.42, 0, 1);
 
       const c = cards[i];
-      c.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateY(${ry}deg) scale(${scale})`;
+      c.style.transform =
+        `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, ${z.toFixed(1)}px) ` +
+        `rotateY(${th.toFixed(4)}rad) scale(${scale.toFixed(3)})`;
       c.style.opacity = op.toFixed(3);
-      c.style.zIndex = String(200 - Math.round(ao * 10));
+      c.style.zIndex = String(300 - Math.round((ao) * 20 + (o > 0 ? 5 : 0)));
       c.style.pointerEvents = ao < 0.55 ? "auto" : "none";
       c.classList.toggle("active", ao < 0.5);
     }
@@ -72,10 +71,10 @@ export function initHelix(items) {
     requestAnimationFrame(frame);
     const r = section.getBoundingClientRect();
     const total = section.offsetHeight - window.innerHeight;
-    if (total <= 0) return;                    // hidden (mobile) -> skip
+    if (total <= 0) return;                     // hidden (mobile) -> skip
     const p = clamp(-r.top / total, 0, 1);
     target = p * N;
-    cur += (target - cur) * (reduced ? 1 : 0.1);
+    cur += (target - cur) * (reduced ? 1 : 0.085); // eased -> glides smoothly
     place();
   }
   frame();
