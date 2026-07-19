@@ -27,7 +27,7 @@ export function initHelix(items) {
     const [c1, c2] = HUES[i % HUES.length];
     a.style.setProperty("--c1", c1); a.style.setProperty("--c2", c2);
     a.innerHTML =
-      `<span class="sheen"></span><span class="hmark">VG</span>` +
+      `<span class="cracks"></span><span class="sheen"></span><span class="hmark">VG</span>` +
       `<div class="hbody"><span class="hcat">Tab ${String(i + 1).padStart(2, "0")}</span>` +
       `<b></b><p></p><span class="go">Open ↗</span></div>`;
     a.querySelector("b").textContent = s.label;

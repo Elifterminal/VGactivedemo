@@ -150,7 +150,7 @@ export function createVGShell(canvas, opts = {}) {
 
   // ---- vg-mark + a sweeping specular shine ----
   const markGroup = new THREE.Group(); scene.add(markGroup);
-  let shine = null;
+  let shine = null, markMesh = null, glowMesh = null;
   new THREE.TextureLoader().load("assets/vg-mark-512.png", (tex) => {
     tex.colorSpace = THREE.SRGBColorSpace;
     const aspect = (tex.image?.width && tex.image?.height) ? tex.image.width/tex.image.height : 1;
@@ -161,14 +161,15 @@ export function createVGShell(canvas, opts = {}) {
     glow.position.z = -0.02;
     // shine: a bright band that sweeps across the mark, masked by the mark alpha
     shine = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.ShaderMaterial({
-      uniforms: { uMap: { value: tex }, uTime: { value: 0 } },
+      uniforms: { uMap: { value: tex }, uTime: { value: 0 }, uLit: { value: 1 } },
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
       vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
-      fragmentShader: `uniform sampler2D uMap; uniform float uTime; varying vec2 vUv;
+      fragmentShader: `uniform sampler2D uMap; uniform float uTime, uLit; varying vec2 vUv;
         void main(){ float a=texture2D(uMap,vUv).a; float sweep=smoothstep(0.06,0.0,abs(fract(vUv.x*0.5 - uTime*0.12)-0.5));
-          gl_FragColor=vec4(vec3(0.55,1.0,0.95)*sweep, a*sweep*0.9); }`,
+          gl_FragColor=vec4(vec3(0.55,1.0,0.95)*sweep, a*sweep*0.9*uLit); }`,
     }));
     shine.position.z = 0.01;
+    markMesh = mark; glowMesh = glow;
     markGroup.add(glow, mark, shine); finishReady();
   }, undefined, () => finishReady());
 
@@ -275,17 +276,24 @@ export function createVGShell(canvas, opts = {}) {
     ring1.rotation.z += dt*(0.25 + scroll*0.6);
     ring2.rotation.z -= dt*(0.18 + scroll*0.5); ring2.rotation.y += dt*0.12;
 
-    markGroup.position.y = Math.sin(t*0.6)*0.06 - scroll*1.2;
-    markGroup.rotation.y = lerp(markGroup.rotation.y, target.x*0.35 + scroll*Math.PI*1.1, Math.min(1, dt*2));
+    // the mark sinks like a coin into dark water: slow, deep, dimming to black,
+    // not fully gone until just before the page bottom
+    const sink = scroll;                       // 0..1 across the whole page
+    const lit = Math.max(0, 1 - sink * 1.06);  // brightness fades to 0 near the bottom
+    markGroup.position.y = Math.sin(t*0.6)*0.06 - sink * 2.8;
+    markGroup.rotation.y = lerp(markGroup.rotation.y, target.x*0.3 + sink*0.5, Math.min(1, dt*2)); // gentle turn, no full spin
     markGroup.rotation.z = Math.sin(t*0.3)*0.03;
-    markGroup.scale.setScalar(1 - scroll*0.35);
-    if (shine) shine.material.uniforms.uTime.value = t;
+    markGroup.scale.setScalar(1 - sink * 0.4);
+    if (markMesh) markMesh.material.opacity = lit;
+    if (glowMesh) glowMesh.material.opacity = 0.5 * lit * lit;
+    if (shine) { shine.material.uniforms.uTime.value = t; shine.material.uniforms.uLit.value = lit; }
+    ringMat.opacity = 0.55 * lit; ringMat2.opacity = 0.4 * lit;   // halo dims with it
 
-    bloom.strength = 0.9 + scroll*0.5 + clickPulse*0.4;
+    bloom.strength = 0.9 + clickPulse*0.4;   // keep glow for stars/comets; mark dims via its own opacity
 
     camera.position.x += (target.x*0.5 - camera.position.x)*Math.min(1, dt*2.2);
     camera.position.y += (-target.y*0.35 - camera.position.y)*Math.min(1, dt*2.2);
-    camera.position.z = lerp(camera.position.z, baseZ + scroll*3.2, Math.min(1, dt*2));
+    camera.position.z = lerp(camera.position.z, baseZ + sink*0.9, Math.min(1, dt*2)); // mild recede; the sink does the work
     camera.lookAt(0, 0, 0);
 
     // post grade uniforms
