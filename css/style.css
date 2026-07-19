@@ -149,46 +149,37 @@ footer { text-align: center; padding: 40px var(--pad) 60px; position: relative; 
   border-radius: 22px; overflow: hidden; transform-origin: center center; transform-style: preserve-3d;
   border: 1px solid color-mix(in srgb, var(--c1) 50%, transparent);
   background: linear-gradient(150deg, color-mix(in srgb, var(--c2) 88%, #05070d), #05070d 76%);
-  box-shadow: 0 18px 48px rgba(0,0,0,0.55);
+  /* drop shadow + a subtle bevel (light top-left edge, dark bottom-right) = a touch of thickness */
+  box-shadow: 0 18px 48px rgba(0,0,0,0.55),
+    inset 1.5px 1.5px 0 rgba(255,255,255,0.12), inset -1.5px -1.5px 0 rgba(0,0,0,0.42);
   transition: border-color 0.35s, box-shadow 0.35s; will-change: transform, opacity;
 }
 /* static iridescent tint (cheap) + a GPU-composited sweeping band (transform, no repaint) */
 .hcard::before { content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; opacity: 0.4;
   background: radial-gradient(120% 120% at 18% 8%, color-mix(in srgb, var(--c1) 42%, transparent), transparent 55%); }
-/* 3D cracks: a light copy + a dark copy of each crack, offset to OPPOSITE edges to form
-   a bevelled groove. Their offsets swing in opposite directions (synced to the sheen), so
-   the highlight and shadow sit on opposite sides and swap as the light passes over — the
-   groove reads as 3D catching a moving light. Always faintly visible (etched). */
-.hcard .cracks { position: absolute; inset: 0; pointer-events: none; }
-.hcard .cracks::before, .hcard .cracks::after {
-  content: ""; position: absolute; inset: 0;
-  background: url(../assets/cracks.svg) center / 100% 100% no-repeat;
-  animation: 5.5s ease-in-out infinite; will-change: transform, opacity;
-}
-.hcard .cracks::before { mix-blend-mode: screen;   animation-name: crackHi; }  /* highlight (white) */
-.hcard .cracks::after  { filter: brightness(0); mix-blend-mode: multiply; animation-name: crackLo; }  /* shadow (black) */
-@keyframes crackHi {
-  0%, 100% { transform: translate(-1px, -0.7px); opacity: 0.30; }
-  50%      { transform: translate( 1px,  0.7px); opacity: 0.60; }
-}
-@keyframes crackLo {
-  0%, 100% { transform: translate( 1px,  0.7px); opacity: 0.55; }
-  50%      { transform: translate(-1px, -0.7px); opacity: 0.28; }
-}
 .hcard .sheen { position: absolute; top: -20%; bottom: -20%; left: -70%; width: 55%; pointer-events: none;
   mix-blend-mode: screen; opacity: 0.5; will-change: transform; transform: translateX(0) rotate(8deg);
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c1) 70%, #fff), transparent);
   animation: sheen 5.5s linear infinite; }
 @keyframes sheen { 0% { transform: translateX(0) rotate(8deg); } 100% { transform: translateX(360%) rotate(8deg); } }
+/* the big VG, embossed: a raised 3D letterform whose highlight + cast shadow sweep as
+   the light passes over it (synced to the sheen's cycle). Only this corner mark is 3D. */
 .hcard .hmark { position: absolute; right: -8px; top: -6%; font-size: clamp(150px, 22vw, 240px); font-weight: 800; line-height: 1;
-  letter-spacing: -0.06em; color: color-mix(in srgb, var(--c1) 20%, transparent); pointer-events: none; }
+  letter-spacing: -0.06em; pointer-events: none;
+  color: color-mix(in srgb, var(--c1) 13%, transparent);
+  animation: vgEmboss 5.5s ease-in-out infinite; will-change: text-shadow; }
+@keyframes vgEmboss {
+  0%, 100% { text-shadow: -3px -2px 1px rgba(236,250,246,0.32), 3px 3px 6px rgba(0,0,0,0.62); }   /* light from the left */
+  50%      { text-shadow:  3px -2px 1px rgba(236,250,246,0.32), -3px 3px 6px rgba(0,0,0,0.62); }   /* light from the right */
+}
 .hcard .hbody { position: absolute; left: clamp(20px, 3vw, 34px); right: clamp(20px, 3vw, 34px); bottom: clamp(20px, 3vw, 32px); display: flex; flex-direction: column; gap: 9px; }
 .hcard .hcat { font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; color: color-mix(in srgb, var(--c1) 80%, #fff); }
 .hcard b { font-size: clamp(26px, 3.6vw, 42px); font-weight: 800; letter-spacing: -0.01em; line-height: 1; }
 .hcard p { color: rgba(234,243,242,0.82); font-size: clamp(13px, 1.4vw, 15px); line-height: 1.5; margin: 0; max-width: 78%; }
 .hcard .go { color: var(--c1); font-size: 13px; letter-spacing: 0.1em; opacity: 0; transition: 0.3s; }
 .hcard.active { border-color: color-mix(in srgb, var(--c1) 90%, transparent);
-  box-shadow: 0 26px 66px rgba(0,0,0,0.6), 0 0 46px color-mix(in srgb, var(--c1) 28%, transparent); }
+  box-shadow: 0 26px 66px rgba(0,0,0,0.6), 0 0 46px color-mix(in srgb, var(--c1) 28%, transparent),
+    inset 1.5px 1.5px 0 rgba(255,255,255,0.16), inset -1.5px -1.5px 0 rgba(0,0,0,0.42); }
 .hcard.active .go { opacity: 1; }
 .helix-hint { color: var(--vg-muted); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
 
