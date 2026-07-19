@@ -66,6 +66,15 @@
       <p class="note" data-reveal>Packages on npm under <a href="https://www.npmjs.com/org/vektorgeist" target="_blank" rel="noopener">@vektorgeist</a> and the official MCP Registry.</p>
     </section>
 
+    <section id="helix">
+      <div class="helix-sticky">
+        <p class="eyebrow">Navigate</p>
+        <h2 class="big">The tabs, in orbit.</h2>
+        <div class="helix-stage"><div class="helix-ring" id="helixRing"></div></div>
+        <p class="helix-hint">scroll to spin the ring →</p>
+      </div>
+    </section>
+
     <section id="surfaces">
       <p class="eyebrow" data-reveal>Everything in one place</p>
       <h2 class="big" data-reveal style="--d:.05s">The surfaces.</h2>
@@ -93,6 +102,7 @@
     import { NAV, FOOTER, IDENTITY, LISTINGS, OPEN, SURFACES, TAGLINE, priceLabel } from "./js/data.js";
     import { createVGShell } from "./js/shell.js";
     import { initEffects } from "./js/effects.js";
+    import { initHelix } from "./js/helix.js";
 
     const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
     const link = (o) => { const a = el("a"); a.href = o.href; a.target = "_blank"; a.rel = "noopener"; a.textContent = o.label; return a; };
@@ -155,6 +165,7 @@
     }
 
     initEffects();
+    initHelix(SURFACES);
   </script>
 </body>
 </html>
