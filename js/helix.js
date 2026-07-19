@@ -1,10 +1,9 @@
 // VGactivedemo — "Helix tabs": VG's tabs as real clickable cards on a scroll-driven
-// 3D spiral (Active-Theory /work-style). Pure CSS 3D transforms — the cards stay real
-// HTML (crisp text, real links, clickable, accessible), just positioned in 3D and spun
-// by scroll. Drops into VG as a nav component; only the item list changes.
+// 3D carousel. Coverflow/depth model: the CENTER card is always flat, centered and
+// fully readable; neighbours recede in depth (scaled + dimmed) but stay front-facing,
+// so nothing turns edge-on and unreadable. Pure CSS 3D — cards are real <a> links.
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const norm = (a) => Math.atan2(Math.sin(a), Math.cos(a)); // wrap to [-pi,pi]
 
 export function initHelix(items) {
   const ring = document.getElementById("helixRing");
@@ -12,45 +11,60 @@ export function initHelix(items) {
   if (!ring || !section || !items?.length) return;
 
   const N = items.length;
-  const R = 400;                    // ring radius (px)
-  const TURNS = 1.15;               // how many turns across the section's scroll
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  const cards = items.map((s, i) => {
+  const cards = items.map((s) => {
     const a = document.createElement("a");
     a.className = "hcard";
     a.href = s.href; a.target = "_blank"; a.rel = "noopener";
     a.innerHTML = `<b></b><p></p><span class="go">Open ↗</span>`;
     a.querySelector("b").textContent = s.label;
     a.querySelector("p").textContent = s.desc;
-    const ang = (i / N) * Math.PI * 2;
-    a._ang = ang;
-    // small vertical helix rise so it reads as a spiral, not a flat merry-go-round
-    const y = (i - (N - 1) / 2) * 14;
-    a._y = y;
-    a.style.transform = `translateY(${y}px) rotateY(${ang}rad) translateZ(${R}px)`;
     ring.appendChild(a);
     return a;
   });
 
+  // layout constants (coverflow)
+  const GAP = 340;     // horizontal step for neighbours
+  const DEPTH = 300;   // how far back each step pushes
+  const TILT = 38;     // max degrees a side card leans (stays readable)
+  const ARC = 26;      // slight vertical rise for a spiral feel
+
   let cur = 0, target = 0;
+
+  function place() {
+    for (let i = 0; i < N; i++) {
+      // signed offset from the active index, wrapped to [-N/2, N/2)
+      let o = i - cur;
+      o = ((o % N) + N + N / 2) % N - N / 2;
+      const ao = Math.abs(o);
+      const s = Math.sign(o) || 1;
+
+      const x = s * (GAP * (1 - 1 / (1 + ao)) + GAP * 0.15 * ao); // compressed coverflow spacing
+      const z = -ao * DEPTH;
+      const ry = clamp(-o, -1, 1) * TILT;        // neighbours lean; center is flat
+      const y = -ARC * ao * ao * 0.5;            // gentle arc rise outward
+      const scale = Math.max(0.5, 1 - ao * 0.13);
+      const op = clamp(1 - ao * 0.42, 0, 1);
+
+      const c = cards[i];
+      c.style.transform = `translate3d(${x}px, ${y}px, ${z}px) rotateY(${ry}deg) scale(${scale})`;
+      c.style.opacity = op.toFixed(3);
+      c.style.zIndex = String(200 - Math.round(ao * 10));
+      c.style.pointerEvents = ao < 0.55 ? "auto" : "none"; // only the readable card is clickable
+      c.classList.toggle("active", ao < 0.5);
+    }
+  }
+
   function frame() {
     requestAnimationFrame(frame);
     const r = section.getBoundingClientRect();
     const total = section.offsetHeight - window.innerHeight;
-    if (total <= 0) return;                       // section hidden (mobile) -> skip
+    if (total <= 0) return;                       // hidden (mobile) -> skip
     const p = clamp(-r.top / total, 0, 1);
-    target = p * Math.PI * 2 * TURNS;
+    target = p * N;                               // one full pass of all tabs over the section
     cur += (target - cur) * (reduced ? 1 : 0.12);
-    ring.style.transform = `rotateX(-6deg) rotateY(${-cur}rad)`;
-
-    // mark the front-facing card active (biggest, clickable, lit)
-    let best = 0, bd = 9;
-    for (let i = 0; i < cards.length; i++) {
-      const d = Math.abs(norm(cards[i]._ang - cur));
-      if (d < bd) { bd = d; best = i; }
-    }
-    for (let i = 0; i < cards.length; i++) cards[i].classList.toggle("active", i === best);
+    place();
   }
   frame();
 }
