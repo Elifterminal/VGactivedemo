@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>VektorGeist — Aether shell (demo)</title>
   <meta name="description" content="An Active-Theory-inspired immersive WebGL shell for VektorGeist. Demo only." />
-  <link rel="icon" href="assets/vg-mark-192.png" />
+  <link rel="icon" href="assets/vg-mark-3d.png" />
   <link rel="preload" as="image" href="assets/vg-mark-512.png" />
   <link rel="stylesheet" href="css/style.css" />
   <script type="importmap">
   {
     "imports": {
       "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+      "lenis": "https://unpkg.com/lenis@1.1.14/dist/lenis.mjs"
     }
   }
   </script>
@@ -20,69 +21,101 @@
 <body>
   <canvas id="scene"></canvas>
   <div id="fallback"><img src="assets/vg-mark-512.png" alt="VektorGeist" /></div>
-
   <div id="loader"><div class="word">VektorGeist</div></div>
 
-  <div id="ui">
-    <!-- nav -->
-    <header class="nav">
-      <a class="brand" href="https://vektorgeist.com" target="_blank" rel="noopener">
-        <img src="assets/vg-mark-192.png" alt="" />
-        <b>VektorGeist <span>· operators &amp; agents</span></b>
-      </a>
-      <nav class="navlinks" id="navlinks"></nav>
-    </header>
+  <header class="nav">
+    <a class="brand" href="https://vektorgeist.com" target="_blank" rel="noopener">
+      <img src="assets/vg-mark-3d.png" alt="" />
+      <b>VektorGeist <span>· operators &amp; agents</span></b>
+    </a>
+    <nav class="navlinks" id="navlinks"></nav>
+  </header>
 
-    <!-- hero -->
-    <main class="hero">
-      <h1>Code.<br>Deploy.<br>Evolve.</h1>
-      <p id="tagline"></p>
-      <div class="cta">
-        <a class="btn primary" href="https://vektorgeist.com/market" target="_blank" rel="noopener">Enter the Marketplace</a>
-        <a class="btn ghost" href="https://vektorgeist.com/how-it-works" target="_blank" rel="noopener">How it works</a>
+  <main>
+    <section class="hero">
+      <div>
+        <h1 data-reveal>Code.<br>Deploy.<br>Evolve.</h1>
+        <p class="lead" id="tagline" data-reveal style="--d:.1s"></p>
+        <div class="cta" data-reveal style="--d:.2s">
+          <a class="btn primary" data-magnetic="0.4" href="https://vektorgeist.com/market" target="_blank" rel="noopener">Enter the Marketplace</a>
+          <a class="btn ghost" data-magnetic="0.4" href="https://vektorgeist.com/how-it-works" target="_blank" rel="noopener">How it works</a>
+        </div>
       </div>
-    </main>
+      <div class="scrollhint">Scroll</div>
+    </section>
 
-    <!-- marketplace strip + footer -->
-    <section class="market">
-      <h2>From the marketplace</h2>
+    <section id="identity">
+      <p class="eyebrow" data-reveal>One identity</p>
+      <h2 class="big" data-reveal style="--d:.05s">A home for you<br>and your agents.</h2>
+      <p class="lead" data-reveal style="--d:.1s">One account holds your profile, products, reputation, and the AI agents you run — each with a verifiable, signed identity.</p>
+      <div class="two" id="identity-grid"></div>
+    </section>
+
+    <section id="market">
+      <p class="eyebrow" data-reveal>Marketplace</p>
+      <h2 class="big" data-reveal style="--d:.05s">Tools built for operators.</h2>
+      <p class="lead" data-reveal style="--d:.1s">Buy and sell software, agent tools, and digital assets — with signed provenance.</p>
       <div class="cards" id="cards"></div>
-      <div class="foot">
-        <nav class="footlinks" id="footlinks"></nav>
-        <span class="badge">Layout preset: <b>Aether</b> — demo shell, not the live site</span>
+    </section>
+
+    <section id="open">
+      <p class="eyebrow" data-reveal>Built in the open</p>
+      <h2 class="big" data-reveal style="--d:.05s">Free &amp; open source.</h2>
+      <p class="lead" data-reveal style="--d:.1s">Several of our core tools are free and open source — built by a small team and its agents, in public.</p>
+      <div class="openrow" id="openrow"></div>
+      <p class="note" data-reveal>Packages on npm under <a href="https://www.npmjs.com/org/vektorgeist" target="_blank" rel="noopener">@vektorgeist</a> and the official MCP Registry.</p>
+    </section>
+
+    <section id="surfaces">
+      <p class="eyebrow" data-reveal>Everything in one place</p>
+      <h2 class="big" data-reveal style="--d:.05s">The surfaces.</h2>
+      <div class="surf" id="surf"></div>
+    </section>
+
+    <section class="ctaband">
+      <h2 class="big" data-reveal>Code. Deploy. Evolve.</h2>
+      <div class="cta" data-reveal style="--d:.1s; justify-content:center; display:flex;">
+        <a class="btn primary" data-magnetic="0.4" href="https://vektorgeist.com" target="_blank" rel="noopener">Create an account</a>
+        <a class="btn ghost" data-magnetic="0.4" href="https://vektorgeist.com/how-it-works" target="_blank" rel="noopener">See how it works</a>
       </div>
     </section>
-  </div>
+  </main>
+
+  <footer>
+    <nav class="footlinks" id="footlinks"></nav>
+    <span class="badge">Layout preset: <b>Aether</b> — demo shell, not the live site</span>
+  </footer>
 
   <script type="module">
-    import { NAV, FOOTER, LISTINGS, TAGLINE, priceLabel } from "./js/data.js";
+    // always open on the hero, regardless of the browser's remembered scroll
+    if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
+    import { NAV, FOOTER, IDENTITY, LISTINGS, OPEN, SURFACES, TAGLINE, priceLabel } from "./js/data.js";
     import { createVGShell } from "./js/shell.js";
+    import { initEffects } from "./js/effects.js";
 
-    // ---- render real data into the overlay ----
+    const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
+    const link = (o) => { const a = el("a"); a.href = o.href; a.target = "_blank"; a.rel = "noopener"; a.textContent = o.label; return a; };
+
     document.getElementById("tagline").textContent = TAGLINE;
+    NAV.forEach(n => document.getElementById("navlinks").appendChild(link(n)));
+    FOOTER.forEach(f => document.getElementById("footlinks").appendChild(link(f)));
 
-    const nav = document.getElementById("navlinks");
-    NAV.forEach(n => {
-      const a = document.createElement("a");
-      a.href = n.href; a.target = "_blank"; a.rel = "noopener"; a.textContent = n.label;
-      nav.appendChild(a);
-    });
-
-    const foot = document.getElementById("footlinks");
-    FOOTER.forEach(f => {
-      const a = document.createElement("a");
-      a.href = f.href; a.target = "_blank"; a.rel = "noopener"; a.textContent = f.label;
-      foot.appendChild(a);
+    const ig = document.getElementById("identity-grid");
+    IDENTITY.forEach((d, i) => {
+      const a = el("a", "panel"); a.href = d.href; a.target = "_blank"; a.rel = "noopener";
+      a.setAttribute("data-reveal", ""); a.style.setProperty("--d", (0.1 + i * 0.1) + "s");
+      a.innerHTML = `<div class="k">${d.k}</div><h3></h3><p></p>`;
+      a.querySelector("h3").textContent = d.title; a.querySelector("p").textContent = d.body;
+      ig.appendChild(a);
     });
 
     const cards = document.getElementById("cards");
-    LISTINGS.forEach(l => {
-      const a = document.createElement("a");
-      a.className = "card"; a.href = l.href; a.target = "_blank"; a.rel = "noopener";
+    LISTINGS.forEach((l, i) => {
+      const a = el("a", "card tilt"); a.href = l.href; a.target = "_blank"; a.rel = "noopener";
+      a.setAttribute("data-reveal", ""); a.style.setProperty("--d", (i % 4) * 0.07 + "s");
       const free = l.price === 0 ? " free" : "";
-      a.innerHTML =
-        `<div class="top"><span class="title"></span><span class="price${free}"></span></div>` +
-        `<div class="blurb"></div><span class="tag"></span>`;
+      a.innerHTML = `<div class="top"><span class="title"></span><span class="price${free}"></span></div><div class="blurb"></div><span class="tag"></span>`;
       a.querySelector(".title").textContent = l.title;
       a.querySelector(".price").textContent = priceLabel(l.price);
       a.querySelector(".blurb").textContent = l.blurb;
@@ -90,22 +123,38 @@
       cards.appendChild(a);
     });
 
-    // ---- boot the WebGL shell (with graceful fallback) ----
+    const or = document.getElementById("openrow");
+    OPEN.forEach((o, i) => {
+      const a = el("a", "oss"); a.href = o.href; a.target = "_blank"; a.rel = "noopener";
+      a.setAttribute("data-reveal", ""); a.style.setProperty("--d", i * 0.08 + "s");
+      a.innerHTML = `<b></b> <span class="lic"></span><p></p>`;
+      a.querySelector("b").textContent = o.title; a.querySelector(".lic").textContent = o.license; a.querySelector("p").textContent = o.desc;
+      or.appendChild(a);
+    });
+
+    const sf = document.getElementById("surf");
+    SURFACES.forEach((s, i) => {
+      const a = el("a", "tile"); a.href = s.href; a.target = "_blank"; a.rel = "noopener";
+      a.setAttribute("data-reveal", ""); a.style.setProperty("--d", (i % 3) * 0.07 + "s");
+      a.innerHTML = `<span class="arrow">↗</span><b></b><p></p>`;
+      a.querySelector("b").textContent = s.label; a.querySelector("p").textContent = s.desc;
+      sf.appendChild(a);
+    });
+
+    // boot WebGL
     const loader = document.getElementById("loader");
-    function hideLoader() { loader.classList.add("hidden"); setTimeout(() => loader.remove(), 1000); }
-
+    const hideLoader = () => { loader.classList.add("hidden"); setTimeout(() => loader.remove(), 1000); };
     let shell = null;
-    try {
-      shell = createVGShell(document.getElementById("scene"), { onReady: hideLoader });
-    } catch (e) { console.error("shell error", e); }
+    try { shell = createVGShell(document.getElementById("scene"), { onReady: hideLoader }); }
+    catch (e) { console.error(e); }
 
-    if (!shell) {
-      document.body.classList.add("no-webgl");
-      hideLoader();
-    } else {
-      // safety net: never leave the loader up if onReady is missed
+    if (!shell) { document.body.classList.add("no-webgl"); hideLoader(); }
+    else {
       setTimeout(hideLoader, 4000);
+      window.addEventListener("vg:scroll", (e) => shell.setScroll(e.detail.progress));
     }
+
+    initEffects();
   </script>
 </body>
 </html>
