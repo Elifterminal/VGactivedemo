@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>VektorGeist — Aether shell (demo)</title>
+  <meta name="description" content="An Active-Theory-inspired immersive WebGL shell for VektorGeist. Demo only." />
+  <link rel="icon" href="assets/vg-mark-192.png" />
+  <link rel="preload" as="image" href="assets/vg-mark-512.png" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="scene"></canvas>
+  <div id="fallback"><img src="assets/vg-mark-512.png" alt="VektorGeist" /></div>
+
+  <div id="loader"><div class="word">VektorGeist</div></div>
+
+  <div id="ui">
+    <!-- nav -->
+    <header class="nav">
+      <a class="brand" href="https://vektorgeist.com" target="_blank" rel="noopener">
+        <img src="assets/vg-mark-192.png" alt="" />
+        <b>VektorGeist <span>· operators &amp; agents</span></b>
+      </a>
+      <nav class="navlinks" id="navlinks"></nav>
+    </header>
+
+    <!-- hero -->
+    <main class="hero">
+      <h1>Code.<br>Deploy.<br>Evolve.</h1>
+      <p id="tagline"></p>
+      <div class="cta">
+        <a class="btn primary" href="https://vektorgeist.com/market" target="_blank" rel="noopener">Enter the Marketplace</a>
+        <a class="btn ghost" href="https://vektorgeist.com/how-it-works" target="_blank" rel="noopener">How it works</a>
+      </div>
+    </main>
+
+    <!-- marketplace strip + footer -->
+    <section class="market">
+      <h2>From the marketplace</h2>
+      <div class="cards" id="cards"></div>
+      <div class="foot">
+        <nav class="footlinks" id="footlinks"></nav>
+        <span class="badge">Layout preset: <b>Aether</b> — demo shell, not the live site</span>
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+    import { NAV, FOOTER, LISTINGS, TAGLINE, priceLabel } from "./js/data.js";
+    import { createVGShell } from "./js/shell.js";
+
+    // ---- render real data into the overlay ----
+    document.getElementById("tagline").textContent = TAGLINE;
+
+    const nav = document.getElementById("navlinks");
+    NAV.forEach(n => {
+      const a = document.createElement("a");
+      a.href = n.href; a.target = "_blank"; a.rel = "noopener"; a.textContent = n.label;
+      nav.appendChild(a);
+    });
+
+    const foot = document.getElementById("footlinks");
+    FOOTER.forEach(f => {
+      const a = document.createElement("a");
+      a.href = f.href; a.target = "_blank"; a.rel = "noopener"; a.textContent = f.label;
+      foot.appendChild(a);
+    });
+
+    const cards = document.getElementById("cards");
+    LISTINGS.forEach(l => {
+      const a = document.createElement("a");
+      a.className = "card"; a.href = l.href; a.target = "_blank"; a.rel = "noopener";
+      const free = l.price === 0 ? " free" : "";
+      a.innerHTML =
+        `<div class="top"><span class="title"></span><span class="price${free}"></span></div>` +
+        `<div class="blurb"></div><span class="tag"></span>`;
+      a.querySelector(".title").textContent = l.title;
+      a.querySelector(".price").textContent = priceLabel(l.price);
+      a.querySelector(".blurb").textContent = l.blurb;
+      a.querySelector(".tag").textContent = l.tag;
+      cards.appendChild(a);
+    });
+
+    // ---- boot the WebGL shell (with graceful fallback) ----
+    const loader = document.getElementById("loader");
+    function hideLoader() { loader.classList.add("hidden"); setTimeout(() => loader.remove(), 1000); }
+
+    let shell = null;
+    try {
+      shell = createVGShell(document.getElementById("scene"), { onReady: hideLoader });
+    } catch (e) { console.error("shell error", e); }
+
+    if (!shell) {
+      document.body.classList.add("no-webgl");
+      hideLoader();
+    } else {
+      // safety net: never leave the loader up if onReady is missed
+      setTimeout(hideLoader, 4000);
+    }
+  </script>
+</body>
+</html>
