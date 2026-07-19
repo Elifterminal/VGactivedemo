@@ -155,10 +155,26 @@ footer { text-align: center; padding: 40px var(--pad) 60px; position: relative; 
 /* static iridescent tint (cheap) + a GPU-composited sweeping band (transform, no repaint) */
 .hcard::before { content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; opacity: 0.4;
   background: radial-gradient(120% 120% at 18% 8%, color-mix(in srgb, var(--c1) 42%, transparent), transparent 55%); }
-/* faint 3D-ish cracks that the sweeping sheen lights up as it passes */
-.hcard .cracks { position: absolute; inset: 0; pointer-events: none;
+/* 3D cracks: a light copy + a dark copy of each crack, offset to OPPOSITE edges to form
+   a bevelled groove. Their offsets swing in opposite directions (synced to the sheen), so
+   the highlight and shadow sit on opposite sides and swap as the light passes over — the
+   groove reads as 3D catching a moving light. Always faintly visible (etched). */
+.hcard .cracks { position: absolute; inset: 0; pointer-events: none; }
+.hcard .cracks::before, .hcard .cracks::after {
+  content: ""; position: absolute; inset: 0;
   background: url(../assets/cracks.svg) center / 100% 100% no-repeat;
-  opacity: 0.26; mix-blend-mode: screen; }
+  animation: 5.5s ease-in-out infinite; will-change: transform, opacity;
+}
+.hcard .cracks::before { mix-blend-mode: screen;   animation-name: crackHi; }  /* highlight (white) */
+.hcard .cracks::after  { filter: brightness(0); mix-blend-mode: multiply; animation-name: crackLo; }  /* shadow (black) */
+@keyframes crackHi {
+  0%, 100% { transform: translate(-1px, -0.7px); opacity: 0.30; }
+  50%      { transform: translate( 1px,  0.7px); opacity: 0.60; }
+}
+@keyframes crackLo {
+  0%, 100% { transform: translate( 1px,  0.7px); opacity: 0.55; }
+  50%      { transform: translate(-1px, -0.7px); opacity: 0.28; }
+}
 .hcard .sheen { position: absolute; top: -20%; bottom: -20%; left: -70%; width: 55%; pointer-events: none;
   mix-blend-mode: screen; opacity: 0.5; will-change: transform; transform: translateX(0) rotate(8deg);
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c1) 70%, #fff), transparent);
