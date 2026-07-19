@@ -7,7 +7,7 @@
   <meta name="description" content="An Active-Theory-inspired immersive WebGL shell for VektorGeist. Demo only." />
   <link rel="icon" href="assets/vg-mark-3d.png" />
   <link rel="preload" as="image" href="assets/vg-mark-512.png" />
-  <link rel="stylesheet" href="css/style.css?v=1784459625" />
+  <link rel="stylesheet" href="css/style.css?v=1784459882" />
   <script type="importmap">
   {
     "imports": {
@@ -23,6 +23,9 @@
   <div id="loader"><div class="word">VektorGeist</div></div>
 
   <main>
+    <!-- empty opening: full-screen WebGL logo + starfield, no chrome -->
+    <section class="hero"></section>
+
     <section id="helix">
       <div class="helix-sticky">
         <p class="eyebrow">Navigate</p>
@@ -77,10 +80,10 @@
     // always open on the hero, regardless of the browser's remembered scroll
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
     window.scrollTo(0, 0);
-    import { NAV, FOOTER, IDENTITY, LISTINGS, OPEN, SURFACES, TAGLINE, priceLabel } from "./js/data.js?v=1784459625";
-    import { createVGShell } from "./js/shell.js?v=1784459625";
-    import { initEffects } from "./js/effects.js?v=1784459625";
-    import { initHelix } from "./js/helix.js?v=1784459625";
+    import { NAV, FOOTER, IDENTITY, LISTINGS, OPEN, SURFACES, TAGLINE, priceLabel } from "./js/data.js?v=1784459882";
+    import { createVGShell } from "./js/shell.js?v=1784459882";
+    import { initEffects } from "./js/effects.js?v=1784459882";
+    import { initHelix } from "./js/helix.js?v=1784459882";
 
     const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
     const link = (o) => { const a = el("a"); a.href = o.href; a.target = "_blank"; a.rel = "noopener"; a.textContent = o.label; return a; };
