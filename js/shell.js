@@ -101,6 +101,27 @@ export function createVGShell(canvas, opts = {}) {
   });
   scene.add(new THREE.Points(pGeo, pMat));
 
+  // ---- comet streaks (replaces the glitch lines: diagonal shooting sparks) ----
+  const NC = reduced ? 5 : 16;
+  const cPos = new Float32Array(NC * 6), cCol = new Float32Array(NC * 6);
+  const cGeo = new THREE.BufferGeometry();
+  cGeo.setAttribute("position", new THREE.BufferAttribute(cPos, 3));
+  cGeo.setAttribute("color", new THREE.BufferAttribute(cCol, 3));
+  const cMat = new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  const cometMesh = new THREE.LineSegments(cGeo, cMat);
+  scene.add(cometMesh);
+  const CO = [];
+  function newComet() {
+    const spd = 3.2 + Math.random() * 4.5;
+    const ang = -Math.PI * 0.5 + (Math.random() - 0.5) * 1.2; // mostly rising, varied
+    return {
+      x: (Math.random() - 0.5) * 13, y: -5 - Math.random() * 3, z: (Math.random() - 0.5) * 4 - 1,
+      vx: Math.sin(ang) * spd, vy: Math.abs(Math.cos(ang)) * spd, life: 0, max: 1.6 + Math.random() * 1.8,
+      col: [GOLD, TEAL, CYAN, WHITE][Math.floor(Math.random() * 4)],
+    };
+  }
+  for (let i = 0; i < NC; i++) { const c = newComet(); c.life = Math.random() * c.max; CO[i] = c; }
+
   // ---- rings ----
   const ringMat = new THREE.MeshBasicMaterial({ color: TEAL, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
   const ringMat2 = ringMat.clone(); ringMat2.color = CYAN.clone(); ringMat2.opacity = 0.4;
@@ -152,8 +173,6 @@ export function createVGShell(canvas, opts = {}) {
         float g = texture2D(tDiffuse, uv).g;
         float b = texture2D(tDiffuse, uv - off).b;
         vec3 c = vec3(r, g, b);
-        float line = step(0.992 - uAber*0.4, hash(vec2(floor(uv.y*140.0), floor(uTime*9.0))));
-        c += line * uAber * 0.35;                              // glitch scanline on fast scroll
         float dc = length(uv - 0.5);
         c *= 1.0 - 0.55*pow(dc, 2.3);                          // vignette
         c = pow(c, vec3(0.94));                                // gentle contrast/grade
@@ -203,6 +222,21 @@ export function createVGShell(canvas, opts = {}) {
 
     pMat.uniforms.uTime.value = t; pMat.uniforms.uSurge.value = scroll;
 
+    // comet streaks: advance, fade in/out, respawn; head bright, tail transparent
+    for (let i = 0; i < NC; i++) {
+      let c = CO[i];
+      c.x += c.vx * dt; c.y += c.vy * dt; c.life += dt;
+      if (c.life > c.max || c.y > 6) { c = CO[i] = newComet(); }
+      const fade = Math.sin(Math.min(1, c.life / c.max) * Math.PI);
+      const tl = 0.14;
+      cPos[i*6] = c.x; cPos[i*6+1] = c.y; cPos[i*6+2] = c.z;
+      cPos[i*6+3] = c.x - c.vx * tl; cPos[i*6+4] = c.y - c.vy * tl; cPos[i*6+5] = c.z;
+      cCol[i*6] = c.col.r * fade; cCol[i*6+1] = c.col.g * fade; cCol[i*6+2] = c.col.b * fade;
+      cCol[i*6+3] = 0; cCol[i*6+4] = 0; cCol[i*6+5] = 0;
+    }
+    cGeo.attributes.position.needsUpdate = true;
+    cGeo.attributes.color.needsUpdate = true;
+
     ring1.rotation.z += dt*(0.25 + scroll*0.6);
     ring2.rotation.z -= dt*(0.18 + scroll*0.5); ring2.rotation.y += dt*0.12;
 
@@ -237,7 +271,7 @@ export function createVGShell(canvas, opts = {}) {
     destroy() {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize); window.removeEventListener("pointermove", onMove);
-      pGeo.dispose(); pMat.dispose(); dot.dispose();
+      pGeo.dispose(); pMat.dispose(); dot.dispose(); cGeo.dispose(); cMat.dispose();
       ring1.geometry.dispose(); ring2.geometry.dispose(); ringMat.dispose(); ringMat2.dispose();
       backdrop.geometry.dispose(); backdrop.material.map.dispose(); backdrop.material.dispose();
       composer.dispose?.(); renderer.dispose();

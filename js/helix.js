@@ -36,14 +36,14 @@ export function initHelix(items) {
     return a;
   });
 
-  // helix geometry
-  const R = 560;                       // radius from the central axis (px)
+  // helix geometry — radius + pitch scale with the viewport so it fits every window
   const ANG = 40 * Math.PI / 180;      // angle between successive cards around the axis
-  const RISE = 190;                    // how far each step climbs (spiral pitch)
 
   let cur = 0, target = 0;
 
   function place() {
+    const R = Math.min(560, window.innerWidth * 0.40);   // radius from the central axis (px)
+    const RISE = R * 0.34;                                // spiral pitch (climb per step)
     for (let i = 0; i < N; i++) {
       let o = i - cur;
       o = ((o % N) + N + N / 2) % N - N / 2;   // wrap to [-N/2, N/2)
@@ -58,6 +58,7 @@ export function initHelix(items) {
 
       const c = cards[i];
       c.style.transform =
+        `translate(-50%, -50%) ` +             // center the card on the axis (size-independent)
         `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, ${z.toFixed(1)}px) ` +
         `rotateY(${th.toFixed(4)}rad) scale(${scale.toFixed(3)})`;
       c.style.opacity = op.toFixed(3);
