@@ -7,7 +7,7 @@
   <meta name="description" content="An Active-Theory-inspired immersive WebGL shell for VektorGeist. Demo only." />
   <link rel="icon" href="assets/vg-mark-3d.png" />
   <link rel="preload" as="image" href="assets/vg-mark-512.png" />
-  <link rel="stylesheet" href="css/style.css?v=1784459247" />
+  <link rel="stylesheet" href="css/style.css?v=1784459625" />
   <script type="importmap">
   {
     "imports": {
@@ -22,33 +22,12 @@
   <div id="fallback"><img src="assets/vg-mark-512.png" alt="VektorGeist" /></div>
   <div id="loader"><div class="word">VektorGeist</div></div>
 
-  <header class="nav">
-    <a class="brand" href="https://vektorgeist.com" target="_blank" rel="noopener">
-      <img src="assets/vg-mark-3d.png" alt="" />
-      <b>VektorGeist <span>· operators &amp; agents</span></b>
-    </a>
-    <nav class="navlinks" id="navlinks"></nav>
-  </header>
-
   <main>
-    <section class="hero">
-      <div>
-        <h1 data-reveal>Code.<br>Deploy.<br>Evolve.</h1>
-        <p class="lead" id="tagline" data-reveal style="--d:.1s"></p>
-        <div class="cta" data-reveal style="--d:.2s">
-          <a class="btn primary" data-magnetic="0.4" href="https://vektorgeist.com/market" target="_blank" rel="noopener">Enter the Marketplace</a>
-          <a class="btn ghost" data-magnetic="0.4" href="https://vektorgeist.com/how-it-works" target="_blank" rel="noopener">How it works</a>
-        </div>
-      </div>
-      <div class="scrollhint">Scroll</div>
-    </section>
-
     <section id="helix">
       <div class="helix-sticky">
         <p class="eyebrow">Navigate</p>
         <h2 class="big">The tabs, in orbit.</h2>
         <div class="helix-stage"><div class="helix-spine"></div><div class="helix-ring" id="helixRing"></div></div>
-        <p class="helix-hint">scroll to spin the ring →</p>
       </div>
     </section>
 
@@ -98,16 +77,14 @@
     // always open on the hero, regardless of the browser's remembered scroll
     if ("scrollRestoration" in history) history.scrollRestoration = "manual";
     window.scrollTo(0, 0);
-    import { NAV, FOOTER, IDENTITY, LISTINGS, OPEN, SURFACES, TAGLINE, priceLabel } from "./js/data.js?v=1784459247";
-    import { createVGShell } from "./js/shell.js?v=1784459247";
-    import { initEffects } from "./js/effects.js?v=1784459247";
-    import { initHelix } from "./js/helix.js?v=1784459247";
+    import { NAV, FOOTER, IDENTITY, LISTINGS, OPEN, SURFACES, TAGLINE, priceLabel } from "./js/data.js?v=1784459625";
+    import { createVGShell } from "./js/shell.js?v=1784459625";
+    import { initEffects } from "./js/effects.js?v=1784459625";
+    import { initHelix } from "./js/helix.js?v=1784459625";
 
     const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
     const link = (o) => { const a = el("a"); a.href = o.href; a.target = "_blank"; a.rel = "noopener"; a.textContent = o.label; return a; };
 
-    document.getElementById("tagline").textContent = TAGLINE;
-    NAV.forEach(n => document.getElementById("navlinks").appendChild(link(n)));
     FOOTER.forEach(f => document.getElementById("footlinks").appendChild(link(f)));
 
     const ig = document.getElementById("identity-grid");
