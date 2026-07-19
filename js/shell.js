@@ -74,11 +74,13 @@ export function createVGShell(canvas, opts = {}) {
   const dot = makeDotTexture();
   const pMat = new THREE.ShaderMaterial({
     uniforms: { uMap: { value: dot }, uTime: { value: 0 }, uPix: { value: renderer.getPixelRatio() },
-      uSurge: { value: 0 }, uFlow: { value: 0.28 } },
+      uSurge: { value: 0 }, uFlow: { value: 0.28 }, uAspect: { value: 1 },
+      uRip: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] } },
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     vertexShader: `
       attribute vec3 aColor; attribute float aSize; attribute float aPhase;
-      uniform float uTime, uPix, uSurge, uFlow;
+      uniform float uTime, uPix, uSurge, uFlow, uAspect;
+      uniform vec4 uRip[4];   // xy = ripple centre (screen uv), z = radius, w = strength
       varying vec3 vColor; varying float vTw;
       void main(){
         vColor = aColor;
@@ -93,7 +95,18 @@ export function createVGShell(canvas, opts = {}) {
         p.y += sin(uTime*0.2 + p.x) * 0.15;   // gentle rise/sway
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_PointSize = aSize * uPix * (14.0 / -mv.z) * (1.0 + uSurge*0.4);
-        gl_Position = projectionMatrix * mv;
+        vec4 clip = projectionMatrix * mv;
+        // ripple the starfield (screen space) near each wavefront — the logo mesh is separate + unaffected
+        vec2 suv = clip.xy / clip.w * 0.5 + 0.5;
+        for (int i = 0; i < 4; i++) {
+          if (uRip[i].w <= 0.0) continue;
+          vec2 rd = suv - uRip[i].xy; rd.x *= uAspect;
+          float wv = length(rd) - uRip[i].z;
+          float disp = sin(wv * 40.0) * exp(-wv * wv * 70.0) * uRip[i].w;
+          vec2 dir = normalize(rd + 1e-5); dir.x /= uAspect;
+          clip.xy += dir * disp * 0.07 * clip.w;
+        }
+        gl_Position = clip;
       }`,
     fragmentShader: `
       uniform sampler2D uMap; varying vec3 vColor; varying float vTw;
@@ -129,16 +142,10 @@ export function createVGShell(canvas, opts = {}) {
   const ring2 = new THREE.Mesh(new THREE.TorusGeometry(2.15, 0.004, 8, 240), ringMat2); ring2.rotation.x = 0.5;
   scene.add(ring1, ring2);
 
-  // ---- pond ripples: rare expanding rings (the "stars on dark water" feel) ----
+  // ---- pond ripples: distort the starfield near each wavefront (state only, no meshes) ----
   const RPOOL = 4;
-  const rippleGeo = new THREE.RingGeometry(0.93, 1.0, 56);
-  const ripples = [];
-  for (let i = 0; i < RPOOL; i++) {
-    const m = new THREE.Mesh(rippleGeo, new THREE.MeshBasicMaterial({
-      color: TEAL, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    m.visible = false; scene.add(m);
-    ripples.push({ mesh: m, life: 0, max: 0 });
-  }
+  const ripStates = [];
+  for (let i = 0; i < RPOOL; i++) ripStates.push({ life: 0, max: 0, cx: 0.5, cy: 0.5 });
   let rippleTimer = 2 + Math.random() * 3;
 
   // ---- vg-mark + a sweeping specular shine ----
@@ -199,6 +206,7 @@ export function createVGShell(canvas, opts = {}) {
     const w = canvas.clientWidth || innerWidth, h = canvas.clientHeight || innerHeight;
     renderer.setSize(w, h, false); composer.setSize(w, h);
     bloom.setSize(Math.round(w * 0.6), Math.round(h * 0.6)); // half-res bloom = big GPU saving, ~same look
+    pMat.uniforms.uAspect.value = w / h;                     // ripple math needs aspect
     camera.aspect = w / h; baseZ = w < h ? 8.2 : (w < 900 ? 7.0 : 6.2); camera.updateProjectionMatrix();
   }
   resize(); window.addEventListener("resize", resize);
@@ -249,24 +257,19 @@ export function createVGShell(canvas, opts = {}) {
     cGeo.attributes.position.needsUpdate = true;
     cGeo.attributes.color.needsUpdate = true;
 
-    // pond ripples: spawn rarely, expand + fade like a drop on water
+    // pond ripples: spawn rarely; feed each expanding wavefront to the star shader
     rippleTimer -= dt;
     if (rippleTimer <= 0) {
-      const r = ripples.find((rr) => rr.life <= 0);
-      if (r) {
-        r.max = r.life = 2.6 + Math.random() * 1.6;
-        r.mesh.position.set((Math.random() - 0.5) * 7, (Math.random() - 0.5) * 4.5 - 0.5, -0.6);
-        r.mesh.material.color.copy(Math.random() < 0.5 ? TEAL : CYAN);
-        r.mesh.visible = true;
-      }
+      const s = ripStates.find((rr) => rr.life <= 0);
+      if (s) { s.max = s.life = 2.4 + Math.random() * 1.6; s.cx = Math.random(); s.cy = Math.random(); }
       rippleTimer = 3.5 + Math.random() * 5;   // rare
     }
-    for (const r of ripples) {
-      if (r.life <= 0) { if (r.mesh.visible) r.mesh.visible = false; continue; }
-      r.life -= dt;
-      const pr = 1 - r.life / r.max;
-      r.mesh.scale.setScalar(0.2 + pr * 2.6);
-      r.mesh.material.opacity = Math.sin(pr * Math.PI) * 0.3;
+    for (let i = 0; i < RPOOL; i++) {
+      const s = ripStates[i]; const u = pMat.uniforms.uRip.value[i];
+      if (s.life <= 0) { u.w = 0; continue; }
+      s.life -= dt;
+      const pr = 1 - s.life / s.max;
+      u.set(s.cx, s.cy, pr * 0.85, Math.sin(pr * Math.PI));   // centre, expanding radius, fade in/out
     }
 
     ring1.rotation.z += dt*(0.25 + scroll*0.6);
@@ -304,7 +307,6 @@ export function createVGShell(canvas, opts = {}) {
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize); window.removeEventListener("pointermove", onMove);
       pGeo.dispose(); pMat.dispose(); dot.dispose(); cGeo.dispose(); cMat.dispose();
-      rippleGeo.dispose(); ripples.forEach((r) => r.mesh.material.dispose());
       ring1.geometry.dispose(); ring2.geometry.dispose(); ringMat.dispose(); ringMat2.dispose();
       backdrop.geometry.dispose(); backdrop.material.map.dispose(); backdrop.material.dispose();
       composer.dispose?.(); renderer.dispose();

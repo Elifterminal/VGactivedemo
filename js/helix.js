@@ -42,10 +42,10 @@ export function initHelix(items) {
   let cur = 0, target = 0;
 
   function place() {
-    const cardW = Math.min(500, window.innerWidth * 0.44);
+    const cardW = Math.min(560, window.innerWidth * 0.48);
     const cardH = cardW / 1.58;                          // matches CSS aspect-ratio 60/38
-    const R = Math.min(560, window.innerWidth * 0.42);   // radius from the central axis (px)
-    const RISE = cardH * 1.15;                            // pitch > card height -> neighbours clear vertically
+    const R = Math.min(580, window.innerWidth * 0.44);   // radius from the central axis (px)
+    const RISE = cardH * 0.92;                            // pitch ~ card height -> corners barely touch
     for (let i = 0; i < N; i++) {
       const o = i - cur;                       // NO wrap: finite list, real first/last ends
       const ao = Math.abs(o);
